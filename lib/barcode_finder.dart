@@ -5,8 +5,9 @@ abstract class BarcodeFinder {
 
   /// If [formats] parameter is an empty list
   /// it will scan for all possible formats
-  static Future<String?> scanFile({
+  static Future<List<String>?> scanFile({
     required String path,
+    bool singleResult = true,
     List<BarcodeFormat> formats = const [],
   }) async {
     try {
@@ -14,6 +15,7 @@ abstract class BarcodeFinder {
       Map<String, dynamic> arguments = {
         'filePath': path,
         'barcodeFormats': listFormats,
+        'singleResult': singleResult,
       };
       if (path.endsWith('.pdf')) {
         return _channel.invokeMethod('scan_pdf', arguments);
