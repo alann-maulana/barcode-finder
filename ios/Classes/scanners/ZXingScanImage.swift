@@ -8,15 +8,30 @@
 import Foundation
 import ZXingObjC
 
-func zxingScanImage(_ image: UIImage, barcodesToFilter: [BarcodeFormatType]) -> String? {
+func zxingScanImage(_ image: UIImage, barcodesToFilter: [BarcodeFormatType], singleResult: Bool = true) -> [String]? {
     let source: ZXLuminanceSource = ZXCGImageLuminanceSource(cgImage: image.cgImage!)
+    
     guard let bitmap = ZXBinaryBitmap(binarizer: ZXHybridBinarizer(source: source)),
           let hints = createZxingHintsFor(barcodeTypes: barcodesToFilter),
-          let reader = ZXMultiFormatReader.reader() as? ZXMultiFormatReader,
-          let result = try? reader.decode(bitmap, hints: hints) else {
+          let reader = ZXMultiFormatReader.reader() as? ZXMultiFormatReader else {
         return nil
     }
-    return result.text
+    
+    if !singleResult {
+        guard let multireader = ZXGenericMultipleBarcodeReader(delegate: reader),
+              let results = try? multireader.decodeMultiple(bitmap, hints: hints) as? [ZXResult] else {
+            return nil
+        }
+        
+        return results.map { result in
+            result.text
+        }
+    }
+    
+    guard let result = try? reader.decode(bitmap, hints: hints) else {
+        return nil
+    }
+    return [result.text]
 }
 
 private func mapBarcodeFormatTypeToZxingFormat(_ barcodeType: BarcodeFormatType) -> ZXBarcodeFormat?{
