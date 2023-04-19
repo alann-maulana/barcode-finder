@@ -18,14 +18,17 @@ import com.google.zxing.RGBLuminanceSource;
 import com.google.zxing.Reader;
 import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.multi.GenericMultipleBarcodeReader;
+import com.google.zxing.multi.MultipleBarcodeReader;
 import com.shockwave.pdfium.PdfDocument;
 import com.shockwave.pdfium.PdfiumCore;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 
-public class ReadBarcodeFromFile extends AsyncTask<Void, Void, String> {
+public class ReadBarcodeFromFile extends AsyncTask<Object, Void, List<String>> {
 
     private static final int NUMBER_OF_ATTEMPTS = 4;
     private static final double PORCENTAGEM_ESCALA = 0.05;
@@ -58,7 +61,14 @@ public class ReadBarcodeFromFile extends AsyncTask<Void, Void, String> {
     }
 
     @Override
-    protected String doInBackground(Void... voids) {
+    protected List<String> doInBackground(Object... objects) {
+        boolean singleResult = true;
+        if (objects.length == 1) {
+            if (objects[0] instanceof Boolean) {
+                singleResult = (Boolean) objects[0];
+            }
+        }
+
         if (filePath != null) {
             int tryNumber = 1;
             while (tryNumber <= NUMBER_OF_ATTEMPTS && !outOfMemoryError) {
@@ -70,7 +80,7 @@ public class ReadBarcodeFromFile extends AsyncTask<Void, Void, String> {
                     bitmap = resizeImage(bitmap, tryNumber);
                 }
                 if (bitmap != null) {
-                    String code = scanImage(bitmap, new MultiFormatReader());
+                    List<String> code = scanImage(bitmap, new MultiFormatReader(), singleResult);
                     if (code != null && !code.isEmpty()) {
                         return code;
                     }
@@ -78,11 +88,11 @@ public class ReadBarcodeFromFile extends AsyncTask<Void, Void, String> {
                 tryNumber++;
             }
         }
-        return "";
+        return new ArrayList<>();
     }
 
     @Override
-    protected void onPostExecute(String result) {
+    protected void onPostExecute(List<String> result) {
         if (!outOfMemoryError) {
             if (result != null && !result.isEmpty()) {
                 listener.onBarcodeFound(result);
@@ -118,8 +128,8 @@ public class ReadBarcodeFromFile extends AsyncTask<Void, Void, String> {
         return null;
     }
 
-    private String scanImage(Bitmap bMap, Reader reader) {
-        String contents = null;
+    private List<String> scanImage(Bitmap bMap, Reader reader, boolean singleResult) {
+        List<String> contents = new ArrayList<>();
         try {
             if (!outOfMemoryError) {
                 int[] intArray = new int[bMap.getWidth() * bMap.getHeight()];
@@ -128,9 +138,19 @@ public class ReadBarcodeFromFile extends AsyncTask<Void, Void, String> {
                 BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
                 Map<DecodeHintType, Object> hints = new EnumMap<>(DecodeHintType.class);
                 hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
-                Result result = reader.decode(bitmap, hints);
-                if (this.barcodeFormats.isEmpty() || this.barcodeFormats.contains(result.getBarcodeFormat().toString())) {
-                    contents = result.getText();
+                if (singleResult) {
+                    Result result = reader.decode(bitmap, hints);
+                    if (this.barcodeFormats.isEmpty() || this.barcodeFormats.contains(result.getBarcodeFormat().toString())) {
+                        contents.add(result.getText());
+                    }
+                } else {
+                    MultipleBarcodeReader multipleReader = new GenericMultipleBarcodeReader(reader);
+                    Result[] results = multipleReader.decodeMultiple(bitmap, hints);
+                    for (Result result : results) {
+                        if (this.barcodeFormats.isEmpty() || this.barcodeFormats.contains(result.getBarcodeFormat().toString())) {
+                            contents.add(result.getText());
+                        }
+                    }
                 }
             }
         } catch (OutOfMemoryError e) {

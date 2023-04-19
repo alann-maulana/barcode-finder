@@ -7,8 +7,10 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import java.io.File;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -26,21 +28,22 @@ public class MethodCallHandlerImpl implements MethodChannel.MethodCallHandler {
         HashMap arguments = (HashMap) call.arguments;
         String filePath = (String) arguments.get("filePath");
         ArrayList barcodeFormats = (ArrayList) arguments.get("barcodeFormats");
+        boolean singleResult = (boolean) arguments.get("singleResult");
         if (call.method.equals("scan_pdf")) {
-            scanFile(result, filePath, EntryType.PDF, barcodeFormats);
+            scanFile(result, filePath, EntryType.PDF, barcodeFormats, singleResult);
         } else if (call.method.equals("scan_image")) {
-            scanFile(result, filePath, EntryType.IMAGE, barcodeFormats);
+            scanFile(result, filePath, EntryType.IMAGE, barcodeFormats, singleResult);
         } else {
             result.notImplemented();
         }
     }
 
-    private void scanFile(final @NonNull MethodChannel.Result result, String filePath, EntryType entryType, ArrayList barcodeFormats) {
+    private void scanFile(final @NonNull MethodChannel.Result result, String filePath, EntryType entryType, ArrayList barcodeFormats, boolean singleResult) {
         File file = new File(filePath);
         Uri uri = Uri.fromFile(file);
         ReadBarcodeFromFile readBarcodeFromFile = new ReadBarcodeFromFile(new OnBarcodeReceivedListener() {
             @Override
-            public void onBarcodeFound(String code) {
+            public void onBarcodeFound(List<String> code) {
                 result.success(code);
             }
 
@@ -54,6 +57,6 @@ public class MethodCallHandlerImpl implements MethodChannel.MethodCallHandler {
                 result.error("out-of-memory", "Out of memory", "");
             }
         }, context, uri, entryType, barcodeFormats);
-        readBarcodeFromFile.execute();
+        readBarcodeFromFile.execute(new Boolean[]{singleResult});
     }
 }
