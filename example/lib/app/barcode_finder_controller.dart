@@ -27,6 +27,7 @@ class BarcodeFinderController extends ChangeNotifier {
     try {
       final barcode = await BarcodeFinder.scanFile(
         path: file.path,
+        singleResult: false,
       );
       _update(barcode);
     } catch (_) {
@@ -41,10 +42,10 @@ class BarcodeFinderController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _update(String? barcode) {
-    if (barcode != null) {
+  void _update(List<String>? barcode) {
+    if (barcode != null && barcode.isNotEmpty) {
       _emit(
-        BarcodeFinderSuccess(barcode),
+        BarcodeFinderSuccess(barcode.join(',')),
       );
     } else {
       _emit(
