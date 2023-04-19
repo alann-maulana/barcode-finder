@@ -17,10 +17,22 @@ abstract class BarcodeFinder {
         'barcodeFormats': listFormats,
         'singleResult': singleResult,
       };
+
+      dynamic result;
       if (path.endsWith('.pdf')) {
-        return _channel.invokeMethod('scan_pdf', arguments);
+        result = await _channel.invokeMethod('scan_pdf', arguments);
+      } else {
+        result = await _channel.invokeMethod('scan_image', arguments);
       }
-      return _channel.invokeMethod('scan_image', arguments);
+
+      if (result is List<Object?>) {
+        return result
+            .where((element) => element != null)
+            .map((e) => e!.toString())
+            .toList();
+      }
+
+      return [];
     } catch (e) {
       throw Exception();
     }
